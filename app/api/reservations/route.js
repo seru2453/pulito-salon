@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '../_supabaseAdmin';
 
 const requiredFields = ['name', 'kana', 'phone', 'email', 'service', 'date', 'time'];
+const bookedStatuses = ['pending', 'confirmed'];
 
 function sanitizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -30,6 +31,23 @@ export async function POST(request) {
   if (!supabase) {
     console.info('Supabase env vars are not configured. Reservation accepted in demo mode.', reservation);
     return NextResponse.json({ ok: true, mode: 'demo' });
+  }
+
+  const { data: existingReservation, error: existingError } = await supabase
+    .from('reservations')
+    .select('id')
+    .eq('preferred_date', reservation.preferred_date)
+    .eq('preferred_time', reservation.preferred_time)
+    .in('status', bookedStatuses)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(existingError);
+    return NextResponse.json({ error: '空き状況の確認に失敗しました。時間をおいて再度お試しください。' }, { status: 500 });
+  }
+
+  if (existingReservation) {
+    return NextResponse.json({ error: '選択した日時はすでに予約が入っています。別の時間を選択してください。' }, { status: 409 });
   }
 
   const { error } = await supabase.from('reservations').insert(reservation);

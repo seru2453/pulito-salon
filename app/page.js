@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck,
   ChevronRight,
@@ -120,6 +120,8 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ type: 'idle', message: '' });
+  const [bookedTimes, setBookedTimes] = useState([]);
+  const [availabilityStatus, setAvailabilityStatus] = useState('idle');
 
   const minDate = useMemo(() => {
     const date = new Date();
@@ -130,6 +132,49 @@ export default function Home() {
   const updateForm = (event) => {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
+
+  useEffect(() => {
+    if (!form.date) {
+      setBookedTimes([]);
+      setAvailabilityStatus('idle');
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadAvailability() {
+      setAvailabilityStatus('loading');
+
+      try {
+        const response = await fetch(`/api/reservations/availability?date=${encodeURIComponent(form.date)}`, {
+          signal: controller.signal,
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || '空き状況の取得に失敗しました。');
+        }
+
+        const nextBookedTimes = result.bookedTimes || [];
+        setBookedTimes(nextBookedTimes);
+        setAvailabilityStatus('ready');
+
+        if (nextBookedTimes.includes(form.time)) {
+          const nextAvailableTime = timeSlots.find((slot) => !nextBookedTimes.includes(slot));
+          setForm((current) => ({ ...current, time: nextAvailableTime || '' }));
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setBookedTimes([]);
+          setAvailabilityStatus('error');
+        }
+      }
+    }
+
+    loadAvailability();
+
+    return () => controller.abort();
+  }, [form.date, form.time]);
 
   const showFallbackImage = (event) => {
     if (event.currentTarget.dataset.fallbackApplied === 'true') {
@@ -408,8 +453,18 @@ export default function Home() {
                 <label className="field-label">
                   時間
                   <select className="field" name="time" value={form.time} onChange={updateForm}>
-                    {timeSlots.map((slot) => <option key={slot}>{slot}</option>)}
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot} disabled={bookedTimes.includes(slot)}>
+                        {bookedTimes.includes(slot) ? `${slot} 予約済み` : slot}
+                      </option>
+                    ))}
                   </select>
+                  {form.date && availabilityStatus === 'ready' && bookedTimes.length > 0 && (
+                    <span className="text-xs font-bold text-[#9b5d3a]">予約済みの時間は選択できません。</span>
+                  )}
+                  {form.date && availabilityStatus === 'error' && (
+                    <span className="text-xs font-bold text-red-700">空き状況を取得できませんでした。</span>
+                  )}
                 </label>
               </div>
               <label className="field-label md:col-span-2">
@@ -419,7 +474,7 @@ export default function Home() {
             </div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs leading-5 text-[#6f6760]">送信時点では仮予約です。決済機能は入れていません。</p>
-              <button className="primary-button" type="submit" disabled={status.type === 'loading'}>
+              <button className="primary-button" type="submit" disabled={status.type === 'loading' || !form.time}>
                 <CalendarCheck className="h-4 w-4" />
                 {status.type === 'loading' ? '送信中' : '予約を送信'}
               </button>
