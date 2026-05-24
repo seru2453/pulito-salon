@@ -169,7 +169,7 @@ export default function Home() {
 
   const navItems = [
     ['コンセプト', '#concept'],
-    ['店内外', '#gallery'],
+    ['外観・内観', '#gallery'],
     ['メニュー', '#menu'],
     ['予約', '#reserve'],
     ['アクセス', '#access'],
@@ -275,7 +275,7 @@ export default function Home() {
           <div className="mb-9 grid gap-4 md:grid-cols-[0.7fr_1fr] md:items-end">
             <div>
               <p className="text-sm font-bold text-[#d7a29a]">SALON PHOTOS</p>
-              <h2 className="mt-3 text-3xl font-bold md:text-5xl">店内外</h2>
+              <h2 className="mt-3 text-3xl font-bold md:text-5xl">外観・内観</h2>
             </div>
             <p className="text-sm leading-7 text-white/72">
               外観、入口、施術室、待合スペースを事前に確認できます。完全予約制のため、落ち着いた空間で過ごせます。
