@@ -16,18 +16,33 @@ export async function GET(request) {
     return NextResponse.json({ bookedTimes: [], mode: 'demo' });
   }
 
-  const { data, error } = await supabase
+  const { data: reservations, error: reservationsError } = await supabase
     .from('reservations')
     .select('preferred_time')
     .eq('preferred_date', date)
     .in('status', bookedStatuses);
 
-  if (error) {
-    console.error(error);
+  if (reservationsError) {
+    console.error(reservationsError);
     return NextResponse.json({ error: '空き状況の取得に失敗しました。' }, { status: 500 });
   }
 
-  const bookedTimes = [...new Set(data.map((reservation) => reservation.preferred_time))];
+  const { data: blocks, error: blocksError } = await supabase
+    .from('reservation_blocks')
+    .select('blocked_time')
+    .eq('blocked_date', date);
+
+  if (blocksError && !['42P01', 'PGRST205'].includes(blocksError.code)) {
+    console.error(blocksError);
+    return NextResponse.json({ error: '空き状況の取得に失敗しました。' }, { status: 500 });
+  }
+
+  const bookedTimes = [
+    ...new Set([
+      ...reservations.map((reservation) => reservation.preferred_time),
+      ...(blocks || []).map((block) => block.blocked_time),
+    ]),
+  ];
 
   return NextResponse.json({ bookedTimes, mode: 'supabase' });
 }

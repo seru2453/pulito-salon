@@ -6,8 +6,10 @@ import {
   CheckCircle2,
   CircleDashed,
   LogIn,
+  Plus,
   RefreshCw,
   Search,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 
@@ -19,6 +21,12 @@ const statuses = [
 ];
 
 const statusMap = Object.fromEntries(statuses.map((status) => [status.value, status]));
+const timeSlots = ['10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00'];
+const initialBlockForm = {
+  date: '',
+  time: '10:00',
+  reason: '',
+};
 
 function formatDate(value) {
   if (!value) {
@@ -55,31 +63,104 @@ export default function AdminPage() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState('');
+  const [blocks, setBlocks] = useState([]);
+  const [blockForm, setBlockForm] = useState(initialBlockForm);
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [deletingBlockId, setDeletingBlockId] = useState('');
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const loadReservations = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/admin/reservations', { cache: 'no-store' });
-      const result = await response.json();
+      const reservationsResponse = await fetch('/api/admin/reservations', { cache: 'no-store' });
+      const reservationsResult = await reservationsResponse.json();
 
-      if (response.status === 401) {
+      if (reservationsResponse.status === 401) {
         setAuthenticated(false);
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(result.error || '予約一覧の取得に失敗しました。');
+      if (!reservationsResponse.ok) {
+        throw new Error(reservationsResult.error || '予約一覧の取得に失敗しました。');
+      }
+
+      const blocksResponse = await fetch('/api/admin/blocked-times', { cache: 'no-store' });
+      const blocksResult = await blocksResponse.json();
+
+      if (blocksResponse.status === 401) {
+        setAuthenticated(false);
+        return;
+      }
+
+      if (!blocksResponse.ok) {
+        throw new Error(blocksResult.error || 'ブロック時間の取得に失敗しました。');
       }
 
       setAuthenticated(true);
-      setReservations(result.reservations || []);
+      setReservations(reservationsResult.reservations || []);
+      setBlocks(blocksResult.blocks || []);
     } catch (loadError) {
       setError(loadError.message);
     } finally {
       setChecking(false);
       setLoading(false);
+    }
+  };
+
+  const updateBlockForm = (event) => {
+    setBlockForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  };
+
+  const createBlock = async (event) => {
+    event.preventDefault();
+    setSavingBlock(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/blocked-times', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(blockForm),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'ブロック時間の追加に失敗しました。');
+      }
+
+      setBlocks((current) => [...current, result.block].sort((a, b) => (
+        `${a.blocked_date} ${a.blocked_time}`.localeCompare(`${b.blocked_date} ${b.blocked_time}`)
+      )));
+      setBlockForm((current) => ({ ...initialBlockForm, date: current.date }));
+    } catch (blockError) {
+      setError(blockError.message);
+    } finally {
+      setSavingBlock(false);
+    }
+  };
+
+  const deleteBlock = async (id) => {
+    setDeletingBlockId(id);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/admin/blocked-times?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'ブロック時間の削除に失敗しました。');
+      }
+
+      setBlocks((current) => current.filter((block) => block.id !== id));
+    } catch (deleteError) {
+      setError(deleteError.message);
+    } finally {
+      setDeletingBlockId('');
     }
   };
 
@@ -254,6 +335,61 @@ export default function AdminPage() {
           </label>
           {error && <p className="rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p>}
         </div>
+
+        <section className="mt-5 rounded-lg border border-[#e7ddd3] bg-white p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#9b5d3a]">UNAVAILABLE</p>
+              <h2 className="mt-1 text-xl font-bold">脱毛予約を受けない時間</h2>
+              <p className="mt-2 text-sm leading-6 text-[#6f6760]">美容院の予約や外出で埋まっている時間を追加すると、お客様側の予約フォームでは選択できなくなります。</p>
+            </div>
+          </div>
+
+          <form onSubmit={createBlock} className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1.4fr_auto] md:items-end">
+            <label className="field-label">
+              日付
+              <input required className="field" type="date" name="date" value={blockForm.date} min={today} onChange={updateBlockForm} />
+            </label>
+            <label className="field-label">
+              時間
+              <select required className="field" name="time" value={blockForm.time} onChange={updateBlockForm}>
+                {timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
+            </label>
+            <label className="field-label">
+              理由
+              <input className="field" name="reason" value={blockForm.reason} onChange={updateBlockForm} placeholder="美容院予約、外出など" />
+            </label>
+            <button className="primary-button" type="submit" disabled={savingBlock}>
+              <Plus className="h-4 w-4" />
+              {savingBlock ? '追加中' : '追加'}
+            </button>
+          </form>
+
+          <div className="mt-4 grid gap-2">
+            {blocks.length === 0 ? (
+              <p className="rounded-md bg-[#fffdf9] px-4 py-3 text-sm font-bold text-[#6f6760]">ブロック中の時間はありません。</p>
+            ) : (
+              blocks.map((block) => (
+                <div key={block.id} className="flex flex-col gap-3 rounded-md border border-[#e7ddd3] bg-[#fffdf9] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-bold">{formatDate(block.blocked_date)} {block.blocked_time}</p>
+                    <p className="mt-1 text-sm text-[#6f6760]">{block.reason || '理由なし'}</p>
+                  </div>
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-3 text-sm font-bold text-red-700 transition hover:bg-red-50"
+                    type="button"
+                    onClick={() => deleteBlock(block.id)}
+                    disabled={deletingBlockId === block.id}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deletingBlockId === block.id ? '解除中' : '解除'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <section className="mt-5 overflow-hidden rounded-lg border border-[#e7ddd3] bg-white">
           {filteredReservations.length === 0 ? (

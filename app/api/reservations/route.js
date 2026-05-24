@@ -50,6 +50,22 @@ export async function POST(request) {
     return NextResponse.json({ error: '選択した日時はすでに予約が入っています。別の時間を選択してください。' }, { status: 409 });
   }
 
+  const { data: existingBlock, error: blockError } = await supabase
+    .from('reservation_blocks')
+    .select('id')
+    .eq('blocked_date', reservation.preferred_date)
+    .eq('blocked_time', reservation.preferred_time)
+    .maybeSingle();
+
+  if (blockError && !['42P01', 'PGRST205'].includes(blockError.code)) {
+    console.error(blockError);
+    return NextResponse.json({ error: '空き状況の確認に失敗しました。時間をおいて再度お試しください。' }, { status: 500 });
+  }
+
+  if (existingBlock) {
+    return NextResponse.json({ error: '選択した日時は予約できません。別の時間を選択してください。' }, { status: 409 });
+  }
+
   const { error } = await supabase.from('reservations').insert(reservation);
   if (error) {
     console.error(error);
