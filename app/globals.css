@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --ink: #24211d;
+  --muted: #6f6760;
+  --line: #e7ddd3;
+  --surface: #fffaf5;
+  --accent: #9b5d3a;
+  --accent-dark: #6f3f27;
+  --sage: #74856f;
+  --rose: #d7a29a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #fffdf9;
+  color: var(--ink);
+  font-family: Arial, "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.glass {
+  background: rgba(255, 253, 249, 0.86);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(231, 221, 211, 0.8);
+}
+
+.hero-media::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, rgba(36, 33, 29, 0.72), rgba(36, 33, 29, 0.35) 46%, rgba(36, 33, 29, 0.06));
+}
+
+.section-pad {
+  padding: 96px 0;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(155, 93, 58, 0.12);
+}
+
+.field-with-icon {
+  padding-left: 42px;
+}
+
+.field-label {
+  display: grid;
+  gap: 7px;
+  color: #3b342f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.primary-button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  padding: 0 18px;
+  font-weight: 700;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.primary-button:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 12px 28px rgba(111, 63, 39, 0.2);
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 8px;
+  color: white;
+  padding: 0 18px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .section-pad {
+    padding: 68px 0;
+  }
+
+  .hero-media::after {
+    background: linear-gradient(180deg, rgba(36, 33, 29, 0.32), rgba(36, 33, 29, 0.82));
+  }
+}
