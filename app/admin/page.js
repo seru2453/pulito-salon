@@ -87,6 +87,9 @@ export default function AdminPage() {
         throw new Error(reservationsResult.error || '予約一覧の取得に失敗しました。');
       }
 
+      setAuthenticated(true);
+      setReservations(reservationsResult.reservations || []);
+
       const blocksResponse = await fetch('/api/admin/blocked-times', { cache: 'no-store' });
       const blocksResult = await blocksResponse.json();
 
@@ -96,11 +99,11 @@ export default function AdminPage() {
       }
 
       if (!blocksResponse.ok) {
-        throw new Error(blocksResult.error || 'ブロック時間の取得に失敗しました。');
+        setBlocks([]);
+        setError(blocksResult.error || 'ブロック時間の取得に失敗しました。');
+        return;
       }
 
-      setAuthenticated(true);
-      setReservations(reservationsResult.reservations || []);
       setBlocks(blocksResult.blocks || []);
     } catch (loadError) {
       setError(loadError.message);
